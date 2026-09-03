@@ -31,7 +31,8 @@ def test_save_departure_snapshot(monkeypatch, tmp_path) -> None:
 
     assert output_path.exists()
     assert output_path.suffix == ".json"
-    assert output_path.parent.parent == tmp_path
+    assert output_path.parent.name == "NSR_StopPlace_59872"
+    assert output_path.parent.parent.parent == tmp_path 
 
     saved_snapshot = json.loads(output_path.read_text(encoding="utf-8"))
 
