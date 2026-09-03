@@ -29,4 +29,12 @@ analyses and visualizes Norwegian public transport data.
 
 ## Current status
 
-Milestone 1: project structure and development-environment setup.
+Milestone 3 is in progress.
+
+Completed:
+
+- Local Python, Java and PySpark environment
+- Git-based version control and automated tests
+- Entur Geocoder client
+- Entur Journey Planner GraphQL client
+- Raw departure snapshot collection for five Oslo transport hubs
