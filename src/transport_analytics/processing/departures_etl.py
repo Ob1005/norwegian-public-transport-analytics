@@ -32,9 +32,10 @@ def read_raw_snapshots(
     return (
         spark.read.option("multiLine", True)
         .option("recursiveFileLookup", True)
+        .option("pathGlobFilter", "*.json")
         .schema(DEPARTURE_SNAPSHOT_SCHEMA)
         .json(str(input_path))
-    )
+    )  
 
 
 def transform_departures(snapshots: DataFrame) -> DataFrame:

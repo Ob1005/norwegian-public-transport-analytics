@@ -30,6 +30,7 @@ def test_save_departure_snapshot(monkeypatch, tmp_path) -> None:
     )
 
     assert output_path.exists()
+    assert not list(tmp_path.rglob("*.tmp"))
     assert output_path.suffix == ".json"
     assert output_path.parent.name == "NSR_StopPlace_59872"
     assert output_path.parent.parent.parent == tmp_path 

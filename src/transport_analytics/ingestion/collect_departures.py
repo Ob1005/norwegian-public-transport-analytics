@@ -40,8 +40,12 @@ def save_departure_snapshot(
     filename = f"{collected_at.strftime('%Y%m%dT%H%M%SZ')}.json"
     output_path = snapshot_directory / filename
 
-    with output_path.open("w", encoding="utf-8") as file:
+    temporary_path = output_path.with_suffix(".json.tmp")
+
+    with temporary_path.open("w", encoding="utf-8") as file:
         json.dump(snapshot, file, ensure_ascii=False, indent=2)
+
+    temporary_path.replace(output_path)
 
     return output_path
 
