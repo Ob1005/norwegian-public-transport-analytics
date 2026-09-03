@@ -30,7 +30,7 @@ def read_raw_snapshots(
         raise FileNotFoundError(f"Raw data directory not found: {input_path}")
 
     return (
-        spark.read.option("multiLine", True)
+    spark.read.option("multiLine", True)
         .option("recursiveFileLookup", True)
         .option("pathGlobFilter", "*.json")
         .schema(DEPARTURE_SNAPSHOT_SCHEMA)
@@ -106,6 +106,12 @@ def transform_departures(snapshots: DataFrame) -> DataFrame:
         .withColumn(
             "is_weekend",
             F.col("weekday_number").isin(1, 7),
+        )
+                .filter(
+            F.col("stop_place_id").isNotNull()
+            & F.col("service_journey_id").isNotNull()
+            & F.col("aimed_departure_utc").isNotNull()
+            & F.col("expected_departure_utc").isNotNull()
         )
         .dropDuplicates(
             [

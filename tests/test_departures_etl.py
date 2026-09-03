@@ -78,3 +78,13 @@ def test_transform_departures_creates_analytical_fields(
     assert departure.delay_seconds == 300
     assert departure.departure_hour == 10
     assert departure.is_weekend is False
+    snapshot["data"]["stopPlace"]["estimatedCalls"][0][
+        "serviceJourney"
+    ]["id"] = None
+
+    incomplete_snapshots = spark.createDataFrame(
+        [snapshot],
+        schema=DEPARTURE_SNAPSHOT_SCHEMA,
+    )
+
+    assert transform_departures(incomplete_snapshots).count() == 0
