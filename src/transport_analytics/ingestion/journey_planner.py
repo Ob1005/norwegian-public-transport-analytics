@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import requests
@@ -72,8 +73,25 @@ def get_departures(stop_place_id: str, number_of_departures: int = 5) -> dict:
 
 
 def main() -> None:
-    """Display the next departures from Oslo S."""
-    data = get_departures("NSR:StopPlace:59872")
+    """Display upcoming departures for a selected stop."""
+    parser = argparse.ArgumentParser(
+        description="Retrieve upcoming departures from an Entur stop."
+    )
+    parser.add_argument(
+        "stop_place_id",
+        nargs="?",
+        default="NSR:StopPlace:59872",
+        help="Entur stop-place ID. Defaults to Oslo S.",
+    )
+    parser.add_argument(
+        "--number",
+        type=int,
+        default=5,
+        help="Number of departures to retrieve. Defaults to 5.",
+    )
+    arguments = parser.parse_args()
+
+    data = get_departures(arguments.stop_place_id, arguments.number)
     stop = data["stopPlace"]
 
     print(f"Next departures from {stop['name']}:")

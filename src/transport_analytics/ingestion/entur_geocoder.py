@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import requests
@@ -31,11 +32,27 @@ def search_stops(query: str, size: int = 5) -> dict:
 
 
 def main() -> None:
-    """Run a small connection test using Oslo S."""
-    results = search_stops("Oslo S")
+    """Search for stops using a terminal argument."""
+    parser = argparse.ArgumentParser(
+        description="Search Entur for Norwegian public transport stops."
+    )
+    parser.add_argument(
+        "query",
+        nargs="?",
+        default="Oslo S",
+        help="Stop name to search for. Defaults to Oslo S.",
+    )
+    parser.add_argument(
+        "--size",
+        type=int,
+        default=5,
+        help="Maximum number of results. Defaults to 5.",
+    )
+    arguments = parser.parse_args()
 
-    print("Entur connection successful")
-    print("Matching stops:")
+    results = search_stops(arguments.query, arguments.size)
+
+    print(f"Matching stops for '{arguments.query}':")
 
     for feature in results.get("features", []):
         properties = feature.get("properties", {})
