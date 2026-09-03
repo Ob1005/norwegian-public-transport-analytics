@@ -4,7 +4,6 @@ from pathlib import Path
 
 from transport_analytics.ingestion.journey_planner import get_departures
 
-
 DEFAULT_OUTPUT_DIRECTORY = Path("data/raw/departures")
 OSLO_S_ID = "NSR:StopPlace:59872"
 

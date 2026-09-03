@@ -8,17 +8,25 @@ BASE_URL = "https://api.entur.io/journey-planner/v3/graphql"
 DEPARTURES_QUERY = """
 query GetDepartures($stopPlaceId: String!, $numberOfDepartures: Int!) {
   stopPlace(id: $stopPlaceId) {
+    id
     name
     estimatedCalls(numberOfDepartures: $numberOfDepartures) {
       realtime
       aimedDepartureTime
       expectedDepartureTime
+      actualDepartureTime
+      quay {
+        id
+        name
+      }
       destinationDisplay {
         frontText
       }
       serviceJourney {
+        id
         journeyPattern {
           line {
+            id
             publicCode
             name
             transportMode
