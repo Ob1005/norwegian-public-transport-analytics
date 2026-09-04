@@ -23,6 +23,7 @@ def get_database_connection() -> Connection:
         "user": required_environment_value("POSTGRES_USER"),
         "host": os.getenv("POSTGRES_HOST", "localhost"),
         "port": int(os.getenv("POSTGRES_PORT", "5432")),
+        "options": "-c timezone=UTC",
     }
 
     password = os.getenv("POSTGRES_PASSWORD")
