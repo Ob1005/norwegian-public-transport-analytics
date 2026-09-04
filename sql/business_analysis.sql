@@ -70,7 +70,7 @@ GROUP BY stop.stop_name
 ORDER BY average_delay_seconds DESC;
 
 
--- 4. Delay estimates by local departure hour
+-- 4. Delay estimates by local expected-departure hour
 SELECT
     estimate.departure_hour,
     COUNT(*) AS departures,

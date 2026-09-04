@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from psycopg import Connection
@@ -12,6 +13,8 @@ from transport_analytics.processing.departures_etl import (
 )
 
 WAREHOUSE_SQL_PATH = Path("sql/load_warehouse.sql")
+
+LOGGER = logging.getLogger(__name__)
 
 STAGING_COLUMNS = [
     "collected_at_utc",
@@ -90,28 +93,44 @@ def load_departures(
     return staged_rows, fact_rows
 
 
-def main() -> None:
-    """Load processed Parquet departures into PostgreSQL."""
-    if not PROCESSED_DATA_PATH.exists():
+def run_warehouse_load(
+    processed_path: Path = PROCESSED_DATA_PATH,
+) -> tuple[int, int]:
+    """Read processed Parquet and load it into the PostgreSQL warehouse."""
+    if not processed_path.exists():
         raise FileNotFoundError(
-            f"Processed data directory not found: {PROCESSED_DATA_PATH}"
+            f"Processed data directory not found: {processed_path}. "
+            "Run the PySpark ETL stage first."
         )
 
+    LOGGER.info("Loading processed departures from %s", processed_path)
     spark = create_spark_session()
 
     try:
-        departures = spark.read.parquet(str(PROCESSED_DATA_PATH))
+        departures = spark.read.parquet(str(processed_path))
 
         with get_database_connection() as connection:
-            staged_rows, fact_rows = load_departures(
-                departures,
-                connection,
-            )
+            staged_rows, fact_rows = load_departures(departures, connection)
 
-        print(f"Rows copied to staging: {staged_rows}")
-        print(f"Rows available in fact table: {fact_rows}")
+        LOGGER.info(
+            "Warehouse load complete: %d staged rows; %d fact rows available",
+            staged_rows,
+            fact_rows,
+        )
+        return staged_rows, fact_rows
     finally:
         spark.stop()
+
+
+def main() -> None:
+    """Load processed Parquet departures into PostgreSQL."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+    )
+    staged_rows, fact_rows = run_warehouse_load()
+    print(f"Rows copied to staging: {staged_rows}")
+    print(f"Rows available in fact table: {fact_rows}")
 
 
 if __name__ == "__main__":

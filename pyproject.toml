@@ -9,11 +9,17 @@ description = "Analytics pipeline for Norwegian public transport data from Entur
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
+    "pandas>=2.2,<3",
+    "plotly>=6,<7",
     "requests>=2.32,<3",
     "python-dotenv>=1.0,<2",
     "pyspark>=4.2,<5",
     "psycopg[binary]>=3.2,<4",
+    "streamlit>=1.48,<2",
 ]
+
+[project.scripts]
+refresh-transport-pipeline = "transport_analytics.pipeline_refresh:main"
 
 [project.optional-dependencies]
 dev = [

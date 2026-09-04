@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 from pyspark.sql import SparkSession
 
@@ -5,6 +7,7 @@ from transport_analytics.processing.departure_schema import (
     DEPARTURE_SNAPSHOT_SCHEMA,
 )
 from transport_analytics.processing.departures_etl import (
+    create_spark_session,
     transform_departures,
 )
 
@@ -12,12 +15,8 @@ from transport_analytics.processing.departures_etl import (
 @pytest.fixture(scope="module")
 def spark() -> SparkSession:
     """Provide one local Spark session for this test module."""
-    session = (
-        SparkSession.builder.master("local[1]")
-        .appName("departure-etl-test")
-        .config("spark.sql.session.timeZone", "UTC")
-        .getOrCreate()
-    )
+    session = create_spark_session(master="local[1]")
+    assert session.conf.get("spark.pyspark.python") == sys.executable
     yield session
     session.stop()
 

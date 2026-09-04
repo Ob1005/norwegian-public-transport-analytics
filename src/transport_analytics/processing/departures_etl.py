@@ -1,3 +1,6 @@
+import logging
+import os
+import sys
 from pathlib import Path
 
 from pyspark.sql import DataFrame, SparkSession
@@ -10,13 +13,20 @@ from transport_analytics.processing.departure_schema import (
 RAW_DATA_PATH = Path("data/raw/departures")
 PROCESSED_DATA_PATH = Path("data/processed/departures")
 
+LOGGER = logging.getLogger(__name__)
 
-def create_spark_session() -> SparkSession:
-    """Create a local Spark session using UTC internally."""
+
+def create_spark_session(master: str = "local[*]") -> SparkSession:
+    """Create a local Spark session using UTC and the active Python."""
+    python_executable = sys.executable
+    os.environ["PYSPARK_PYTHON"] = python_executable
+    os.environ["PYSPARK_DRIVER_PYTHON"] = python_executable
     return (
-        SparkSession.builder.master("local[*]")
+        SparkSession.builder.master(master)
         .appName("norwegian-public-transport-etl")
         .config("spark.sql.session.timeZone", "UTC")
+        .config("spark.pyspark.python", python_executable)
+        .config("spark.pyspark.driver.python", python_executable)
         .getOrCreate()
     )
 
@@ -30,12 +40,12 @@ def read_raw_snapshots(
         raise FileNotFoundError(f"Raw data directory not found: {input_path}")
 
     return (
-    spark.read.option("multiLine", True)
+        spark.read.option("multiLine", True)
         .option("recursiveFileLookup", True)
         .option("pathGlobFilter", "*.json")
         .schema(DEPARTURE_SNAPSHOT_SCHEMA)
         .json(str(input_path))
-    )  
+    )
 
 
 def transform_departures(snapshots: DataFrame) -> DataFrame:
@@ -107,7 +117,7 @@ def transform_departures(snapshots: DataFrame) -> DataFrame:
             "is_weekend",
             F.col("weekday_number").isin(1, 7),
         )
-                .filter(
+        .filter(
             F.col("stop_place_id").isNotNull()
             & F.col("service_journey_id").isNotNull()
             & F.col("aimed_departure_utc").isNotNull()
@@ -127,6 +137,40 @@ def transform_departures(snapshots: DataFrame) -> DataFrame:
     return transformed
 
 
+def run_etl(
+    input_path: Path = RAW_DATA_PATH,
+    output_path: Path = PROCESSED_DATA_PATH,
+) -> tuple[int, int]:
+    """Run raw-to-Parquet ETL and return input and output row counts."""
+    LOGGER.info("Starting PySpark ETL from %s", input_path)
+    spark = create_spark_session()
+
+    try:
+        raw_snapshots = read_raw_snapshots(spark, input_path)
+        departures = transform_departures(raw_snapshots).cache()
+        raw_count = raw_snapshots.count()
+        processed_count = departures.count()
+
+        if raw_count == 0:
+            raise ValueError(f"No JSON snapshots found in {input_path}")
+        if processed_count == 0:
+            raise ValueError(
+                "ETL produced no valid departure observations; "
+                "check the raw snapshot structure and required fields"
+            )
+
+        write_processed_departures(departures, output_path)
+        LOGGER.info(
+            "PySpark ETL complete: %d snapshots -> %d observations in %s",
+            raw_count,
+            processed_count,
+            output_path,
+        )
+        return raw_count, processed_count
+    finally:
+        spark.stop()
+
+
 def write_processed_departures(
     departures: DataFrame,
     output_path: Path = PROCESSED_DATA_PATH,
@@ -141,27 +185,13 @@ def write_processed_departures(
 
 def main() -> None:
     """Run the complete raw-to-Parquet transformation."""
-    spark = create_spark_session()
-
-    try:
-        raw_snapshots = read_raw_snapshots(spark)
-        departures = transform_departures(raw_snapshots)
-
-        print(f"Raw snapshots: {raw_snapshots.count()}")
-        print(f"Processed departure observations: {departures.count()}")
-
-        departures.select(
-            "stop_name",
-            "line_public_code",
-            "transport_mode",
-            "destination",
-            "delay_seconds",
-        ).show(10, truncate=False)
-
-        write_processed_departures(departures)
-        print(f"Processed data written to {PROCESSED_DATA_PATH}")
-    finally:
-        spark.stop()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+    )
+    raw_count, processed_count = run_etl()
+    print(f"Raw snapshots: {raw_count}")
+    print(f"Processed departure observations: {processed_count}")
 
 
 if __name__ == "__main__":
