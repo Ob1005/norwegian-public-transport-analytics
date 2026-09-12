@@ -20,3 +20,18 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 *.egg-info/
+
+# Local checks and temporary outputs
+.pytest_cache/
+.ruff_cache/
+*.log
+*.tmp
+
+# Local environment variants and database artifacts
+.env.*
+!.env.example
+*.dump
+*.db
+*.sqlite
+*.sqlite3
+pgdata/

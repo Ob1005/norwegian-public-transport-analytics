@@ -215,6 +215,7 @@ def main() -> None:
         )
         add_sample_hover(mode_figure)
         first_chart.plotly_chart(mode_figure, width="stretch")
+    second_chart.caption("Stop comparisons reflect different mixes of modes and lines.")
     second_chart.plotly_chart(stop_figure, width="stretch")
 
     hour_summary = summarize_delays(departures, ["departure_hour"])
@@ -234,8 +235,12 @@ def main() -> None:
         title="Expected delay by local expected-departure hour",
     )
     add_sample_hover(hour_figure)
-    hour_figure.update_xaxes(dtick=1)
+    hour_figure.update_xaxes(range=[0, 23], tick0=0, dtick=1)
     st.plotly_chart(hour_figure, width="stretch")
+    st.caption(
+        "Hours use expected departure time in Europe/Oslo. Service mix and "
+        "sample sizes vary by hour; these patterns do not establish causes."
+    )
 
     st.subheader("Lines with elevated expected-delay rates")
     line_summary = elevated_delay_lines(departures)

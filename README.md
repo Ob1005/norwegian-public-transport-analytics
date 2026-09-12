@@ -20,59 +20,81 @@ The dashboard is an exploratory operational view of a small convenience sample.
 It is not a system for assessing contractual performance or publishing official
 punctuality statistics.
 
-## Architecture
+## Key findings
+
+The recorded sample covers **3–8 September 2026: 20,222 unique departure
+estimates, five monitored stops and 84 lines**. Here, a departure is counted
+once per monitored stop. Results below come from [the analytical SQL](sql/business_analysis.sql).
+
+| Mode | Estimates (n) | Mean expected delay | Median | Over 3 minutes |
+| --- | ---: | ---: | ---: | ---: |
+| Bus | 8,996 | 135.9 sec | 90 sec | 26.3% |
+| Tram | 2,643 | 117.7 sec | 90 sec | 23.7% |
+| Metro | 5,399 | 103.4 sec | 69 sec | 17.0% |
+| Rail | 3,181 | 44.6 sec | 0 sec | 6.9% |
+
+- **Bus showed the highest expected delays** among modes with meaningful sample
+  sizes; rail estimates were substantially lower. Coach has only three estimates
+  and is excluded from meaningful comparisons.
+- **Hourly mean estimates were highest at 16:00 and 17:00**: 163.1 seconds
+  (n=1,481) and 151.1 seconds (n=1,691), respectively, in Oslo local time.
+- **Jernbanetorget had the highest mean among the five monitored stops**:
+  142.3 seconds, with 28.4% over three minutes (n=6,067).
+- **Individual lines varied considerably**: bus 54 had 55.0% of estimates over
+  three minutes (n=262), and bus 81 had 49.7% (n=680).
+
+These are descriptive associations from a short convenience sample, using
+expected times rather than verified final departures. Stops and hours have
+different mixes of modes and lines; these comparisons do not establish causes
+or rank the whole Oslo network.
+
+## Dashboard preview
+
+A screenshot is not included yet. To add one, run the dashboard with the full
+sample selected and capture the title, filters, overview metrics and mode/stop
+charts. Save it as `docs/images/dashboard-overview.png`, then embed that file
+here. Capture only the app content; exclude browser address bars, terminal
+windows and machine details. Check that the main title is fully visible before
+saving.
+
+The dashboard includes overview metrics, date/stop/mode/line filters, comparisons
+by mode and stop, an hourly chart, and line rankings. Hover labels show sample
+sizes. Mode comparisons and line rankings require at least 30 estimates per
+group within the active filters; smaller mode samples are explicitly listed as
+omitted. Stop and hour charts retain all groups.
+
+## Architecture and data pipeline
 
 ```text
-Entur Geocoder + Journey Planner APIs
-                |
-                v
-Recurring Python collection (five-minute JSON snapshots)
-                |
-                v
-data/raw/departures/                    [local, git-ignored]
-                |
-                v
-PySpark validation, flattening, features, and de-duplication
-                |
-                v
-Partitioned Parquet by service_date     [local, git-ignored]
-                |
-                v
-PostgreSQL staging -> dimensions + observation fact
-                |
-                v
-analytics.v_latest_departure_estimate
-                |
-                v
-Streamlit + Plotly dashboard / analytical SQL
+Entur APIs → Python collection → local raw JSON
+          → PySpark ETL → Parquet partitioned by service_date
+          → PostgreSQL staging → dimensions + observation fact
+          → latest-estimate SQL view → Streamlit + Plotly / analytical SQL
 ```
 
-The pipeline keeps immutable API responses as the local source layer, produces
-rebuildable Parquet, and loads a dimensional warehouse. Versioned SQL creates
-the latest-estimate semantic view used by every dashboard result.
+1. **Collect:** the Geocoder REST client helps identify stops. The Journey
+   Planner GraphQL client requests 20 upcoming calls per stop; the Python runner
+   repeats collection every five minutes for the five configured Oslo stops.
+   Timestamped JSON preserves the source responses locally.
+2. **Transform:** PySpark flattens nested calls, parses timestamps, derives delay
+   and local date/hour, filters incomplete departure keys/times, and removes
+   duplicate observations. Parquet provides a rebuildable intermediate dataset.
+3. **Load:** Python streams Parquet rows into PostgreSQL staging. SQL upserts
+   date, stop, quay and line dimensions, then the departure-observation fact.
+4. **Analyse:** a SQL view selects each departure's latest estimate. Dashboard
+   queries filter this view; Pandas calculates chart summaries and Plotly renders
+   them in Streamlit.
 
-## Repository structure
+**Why PostgreSQL?** It keeps observation history in relational tables, enforces
+keys and relationships, and gives the dashboard and standalone SQL a shared
+analytical definition. The dimensions describe when, where and which service;
+the fact table stores the observations and delay measures.
 
-```text
-dashboard/app.py                         Streamlit application
-data/raw/                                Local JSON snapshots (ignored)
-data/processed/                          Local partitioned Parquet (ignored)
-data/samples/                            Reserved for safe public samples
-sql/create_schema.sql                    PostgreSQL staging/star schema
-sql/load_warehouse.sql                   Dimension and fact upserts
-sql/create_analytics_views.sql           Latest-estimate view
-sql/business_analysis.sql                Reusable analytical queries
-src/transport_analytics/ingestion/       Entur clients and collection runner
-src/transport_analytics/processing/      PySpark schema, ETL, quality report
-src/transport_analytics/database/        Connections, loading, view creation
-src/transport_analytics/analysis/        Dashboard query and metric logic
-src/transport_analytics/pipeline_refresh.py  Refresh orchestration
-tests/                                   Unit and PySpark transformation tests
-```
-
-No raw or processed dataset is committed. Entur data is open, but the local
-collection is intentionally kept out of version control to keep the portfolio
-repository small and to avoid publishing an uncontrolled snapshot archive.
+Python handles collection and loading; PySpark handles batch transformation;
+PostgreSQL and SQL handle storage and the analytical grain; Pandas, Streamlit
+and Plotly handle exploration. Pytest and Ruff support repeatable checks. This
+is a local learning project: its modest data volume does not require a Spark
+cluster, and no distributed infrastructure is used.
 
 ## Warehouse grain and repeated observations
 
@@ -93,9 +115,10 @@ cycles.
 partitions observations by stop, service journey, and aimed departure time,
 then retains the row with the newest `collected_at_utc`. Its grain is therefore
 one latest collected estimate per logical departure at each monitored stop.
-The dashboard queries this view exclusively.
+The dashboard queries this view exclusively. In the recorded sample, 34,000
+warehouse observations become 20,222 latest departure estimates.
 
-## Setup
+## Run locally
 
 Prerequisites:
 
@@ -112,19 +135,20 @@ python3.12 -m venv .venv
 cp .env.example .env
 ```
 
-Edit `.env` with a local Entur client identifier and PostgreSQL settings. The
-file is git-ignored. Never commit it. `POSTGRES_PASSWORD` can remain empty when
-the local PostgreSQL authentication configuration does not require a password.
+Run all commands from the repository root. Edit `.env` with your Entur client
+identifier and PostgreSQL settings. The file is git-ignored. `POSTGRES_PASSWORD`
+can remain empty when local PostgreSQL authentication does not require one.
 
 Create the database separately, then initialize its schema once. Substitute
 your configured host, port, user, and database if they differ:
 
 ```bash
+createdb -h localhost -p 5432 -U your_local_postgres_user transport_analytics
 psql -h localhost -p 5432 -U your_local_postgres_user \
   -d transport_analytics -f sql/create_schema.sql
 ```
 
-## Collect and refresh data
+### Collect and refresh data
 
 Collect one snapshot for all configured stops:
 
@@ -163,7 +187,7 @@ An optional processed-data quality report is available after ETL:
 .venv/bin/python -m transport_analytics.processing.data_quality
 ```
 
-## Run the dashboard
+### Run the dashboard
 
 With PostgreSQL running and the warehouse refreshed:
 
@@ -171,16 +195,9 @@ With PostgreSQL running and the warehouse refreshed:
 .venv/bin/streamlit run dashboard/app.py
 ```
 
-The dashboard provides overview KPIs; service-date, stop, mode, and line
-filters; expected delay by mode, stop, and local expected-departure hour; and a
-ranking of lines with elevated delay rates. Transport-mode comparisons and line
-rankings require at least 30 matching observations. Modes below the threshold
-are omitted from the comparison and listed beside the chart. Every chart's
-hover labels expose its group observation count.
-
-The application deliberately fails with setup guidance when PostgreSQL or the
-latest-estimate view is unavailable. It does not silently mix production query
-results with sample data.
+New collections produce different results from the recorded September sample.
+Raw JSON and generated Parquet are git-ignored and are not included in the repo.
+If the database or view is unavailable, the dashboard shows setup guidance.
 
 ## Data quality approach
 
@@ -188,50 +205,42 @@ results with sample data.
   locally for reproducibility.
 - PySpark reads an explicit nested schema, converts timestamps in UTC, derives
   service date/hour from the expected time in `Europe/Oslo`, and filters rows
-  missing identifiers or aimed/expected departure times.
+  missing stop/service-journey IDs or aimed/expected departure times.
 - Duplicate rows within the same collected snapshot are removed using the
   collection time and departure identifiers.
 - PostgreSQL dimensions use stable Entur IDs, fact loading is idempotent at the
   observation grain, and foreign keys protect dimensional consistency.
-- The quality report surfaces missing keys/timestamps, negative delays, delays
-  over two hours, realtime coverage, and core distribution statistics.
+- The processed-data quality report surfaces missing journey IDs/timestamps,
+  negative delays, absolute delays over two hours, realtime coverage and summary
+  statistics. It is not a count of raw rows rejected before transformation.
 - Analytical queries use only the latest estimate for a logical departure and
   display sample sizes alongside results. Transport-mode comparisons and line
   rankings require at least 30 observations per group.
 
-## Method and preliminary limitations
+## Methodology and limitations
 
-Delay is defined as `expected_departure_utc - aimed_departure_utc`. A positive
-value means the departure was expected late when last observed; a negative value
-means it was expected early. `actual_departure_utc` is often unavailable and is
-not substituted for a final observed outcome.
+**Expected delay = expected departure time − aimed departure time.** Positive
+values indicate expected lateness; negative values indicate expected early
+departure. “Over three minutes” means strictly greater than 180 seconds.
+`actual_departure_utc` is not used as a substitute for this measure.
 
-Important limitations:
+Dates and hours are derived from **expected departure time in Europe/Oslo**.
+The field called `service_date` is this local calendar date, not an operator's
+operating-day definition. Hourly means pool estimates across the sampled dates.
 
-- Five selected Oslo hubs are a convenience sample, not a representative sample
-  of Oslo or Norwegian public transport.
-- The collection window is short and may omit nights, weekends, seasons, and
-  disruption periods.
-- A departure can disappear from the API before a final estimate is collected;
-  cancellations, rerouting, and missing calls can therefore create selection
-  bias.
-- Calls without realtime information can have expected time equal to aimed time,
-  which can increase the apparent share of zero-delay estimates.
-- Latest-estimate de-duplication removes repeated-snapshot weighting, but the
-  latest available estimate is not guaranteed to be the final estimate.
-- Small groups produce volatile averages and percentages; the dashboard warns
-  about small filtered samples and applies a minimum to mode comparisons and
-  line rankings.
-- Extreme or negative estimates are retained for transparency and surfaced by
-  the quality checks rather than silently clipped.
-
-### Estimates are not official punctuality statistics
-
-The source fields are scheduled and expected departure times returned by Entur's
-Journey Planner at collection time. The resulting metrics describe **expected
-departure estimates** in this project's snapshots. They are not verified actual
-departures, do not follow an operator or regulator's complete-service rules, and
-must not be presented as official punctuality statistics.
+- **Coverage:** six calendar dates at five selected stops do not represent all
+  Oslo services or complete service days. Collection gaps and the limit of 20
+  upcoming calls per snapshot affect which departures are captured.
+- **Interpretation:** stop and hourly comparisons partly reflect differences in
+  the services operating there. They are descriptive, not causal.
+- **Outcomes:** departures may disappear before a final estimate is collected;
+  cancelled, rerouted or missing calls may be absent. The latest available
+  estimate is not a verified actual departure or an official punctuality measure.
+- **Realtime coverage:** calls without realtime information can have expected
+  time equal to aimed time, increasing the apparent share of zero delays.
+- **Uncertainty:** small groups produce volatile averages and percentages. The
+  30-estimate comparison floor is a practical guardrail, not a statistical
+  significance test. Extreme and negative estimates are retained, not clipped.
 
 ## Testing and checks
 
@@ -250,9 +259,31 @@ Run the full project checks from the repository root:
 The dashboard import is a safe smoke test: rendering and PostgreSQL access happen
 only when Streamlit executes `main()`.
 
+## Repository structure
+
+```text
+dashboard/app.py                         Streamlit application
+data/raw/                                Local JSON snapshots (ignored)
+data/processed/                          Local partitioned Parquet (ignored)
+data/samples/                            Reserved for safe public samples
+sql/create_schema.sql                    PostgreSQL staging/star schema
+sql/load_warehouse.sql                   Dimension and fact upserts
+sql/create_analytics_views.sql           Latest-estimate view
+sql/business_analysis.sql                Reusable analytical queries
+src/transport_analytics/ingestion/       Entur clients and collection runner
+src/transport_analytics/processing/      PySpark schema, ETL, quality report
+src/transport_analytics/database/        Connections, loading, view creation
+src/transport_analytics/analysis/        Dashboard query and metric logic
+src/transport_analytics/pipeline_refresh.py  Refresh orchestration
+tests/                                   Unit and PySpark transformation tests
+```
+
+No raw or processed dataset is committed. Entur data is open, but the local
+collection is intentionally kept out of version control to keep the portfolio
+repository small and to avoid publishing an uncontrolled snapshot archive.
+
 ## Possible future extensions
 
-Longer collection periods, broader geographic coverage, orchestrated scheduling,
-deployment, and carefully evaluated predictive modelling are intentionally out
-of this MVP. They should be considered only after coverage and outcome quality
-support them.
+Collect a longer period with more even coverage, compare stops within the same
+mode or line, and examine how estimates change before a departure. These would
+address the current analytical limitations before adding more tooling.
