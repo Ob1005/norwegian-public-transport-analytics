@@ -50,7 +50,7 @@ or rank the whole Oslo network.
 
 ## Dashboard preview
 
-![Oslo Public Transport Reliability dashboard](dokumenter/bilder/dashboard-overview.png)
+![Oslo Public Transport Reliability dashboard](docs/images/dashboard-overview.png)
 
 The interactive dashboard provides filters for date, stop, transport mode and line, together with overview metrics and comparisons of expected departure delays.
 
