@@ -50,18 +50,9 @@ or rank the whole Oslo network.
 
 ## Dashboard preview
 
-A screenshot is not included yet. To add one, run the dashboard with the full
-sample selected and capture the title, filters, overview metrics and mode/stop
-charts. Save it as `docs/images/dashboard-overview.png`, then embed that file
-here. Capture only the app content; exclude browser address bars, terminal
-windows and machine details. Check that the main title is fully visible before
-saving.
+![Oslo Public Transport Reliability dashboard](dokumenter/bilder/dashboard-overview.png)
 
-The dashboard includes overview metrics, date/stop/mode/line filters, comparisons
-by mode and stop, an hourly chart, and line rankings. Hover labels show sample
-sizes. Mode comparisons and line rankings require at least 30 estimates per
-group within the active filters; smaller mode samples are explicitly listed as
-omitted. Stop and hour charts retain all groups.
+The interactive dashboard provides filters for date, stop, transport mode and line, together with overview metrics and comparisons of expected departure delays.
 
 ## Architecture and data pipeline
 
