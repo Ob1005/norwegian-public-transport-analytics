@@ -36,12 +36,12 @@ These results describe a limited sample of *expected* departure times, not verif
 
 ## Data pipeline
 
-\`\`\`text
+```text
 Entur APIs → Python collection → raw JSON
            → PySpark transformation → Parquet
            → PostgreSQL data model and SQL views
            → Streamlit dashboard (Pandas + Plotly)
-\`\`\`
+```
 
 1. **Collect:** Python retrieves upcoming departures from Entur's Journey Planner API. The collection runner supports repeated snapshots at five-minute intervals.
 2. **Transform:** PySpark parses the nested responses, standardises timestamps, calculates expected delay and writes processed Parquet files.
@@ -56,33 +56,33 @@ In the September sample, approximately **34,000 recorded observations** were red
 
 ## Run locally
 
-**Requirements:** Python 3.11 or 3.12, a Java runtime compatible with PySpark, and PostgreSQL with the \`psql\` client. The commands below use a macOS/Linux-style shell and run from the repository root.
+**Requirements:** Python 3.11 or 3.12, a Java runtime compatible with PySpark, and PostgreSQL with the `psql` client. The commands below use a macOS/Linux-style shell and run from the repository root.
 
-Install the project and configure \`.env\` with your Entur client identifier and local PostgreSQL settings:
+Install the project and configure `.env` with your Entur client identifier and local PostgreSQL settings:
 
-\`\`\`bash
+```bash
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 cp .env.example .env
-\`\`\`
+```
 
 Create the database and initialise the schema (replace the example PostgreSQL username if needed):
 
-\`\`\`bash
+```bash
 createdb -h localhost -p 5432 -U your_local_postgres_user transport_analytics
 psql -h localhost -p 5432 -U your_local_postgres_user \
   -d transport_analytics -f sql/create_schema.sql
-\`\`\`
+```
 
 Collect a snapshot, refresh the pipeline and start the dashboard:
 
-\`\`\`bash
+```bash
 .venv/bin/python -m transport_analytics.ingestion.collection_runner
 .venv/bin/refresh-transport-pipeline
 .venv/bin/streamlit run dashboard/app.py
-\`\`\`
+```
 
-For recurring collection, run \`.venv/bin/python -m transport_analytics.ingestion.collection_runner --repeat --interval-seconds 300\` separately. New collections will produce different results from the September sample. Raw JSON and processed Parquet files are excluded from Git.
+For recurring collection, run `.venv/bin/python -m transport_analytics.ingestion.collection_runner --repeat --interval-seconds 300` separately. New collections will produce different results from the September sample. Raw JSON and processed Parquet files are excluded from Git.
 
 ## Methodology and limitations
 
@@ -94,10 +94,10 @@ The sample covers only six calendar dates and five selected stops. Collection ga
 
 The repository includes tests for API handling, PySpark transformation, database logic and dashboard queries. Run checks from the project root:
 
-\`\`\`bash
+```bash
 .venv/bin/ruff check .
 .venv/bin/pytest
 .venv/bin/python -c "import dashboard.app"
-\`\`\`
+```
 
 Explore the [pipeline code](src/transport_analytics/), [SQL data model](sql/create_schema.sql), [business queries](sql/business_analysis.sql) or [dashboard](dashboard/app.py) for implementation details.
