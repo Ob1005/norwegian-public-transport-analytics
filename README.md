@@ -6,19 +6,21 @@ It demonstrates a local batch pipeline from recurring API snapshots through
 PySpark and PostgreSQL to an interactive Streamlit dashboard.
 
 ## Business problem
+Public transport operators and analysts can use historical departure data to identify patterns in expected delays across transport modes, stops and times of day.
 
-Passengers and transport planners need a simple way to see where and when
-expected delays are concentrated. This project asks:
+This project explores how publicly available real-time data from Entur can be collected, processed and analysed to investigate these patterns.
 
-- How large are expected departure delays across transport modes and monitored
-  stops?
-- Which local departure hours show higher expected delays?
-- Which lines have an elevated share of estimates more than three minutes late?
-- How much data supports each result?
+The analysis addresses four questions:
 
-The dashboard is an exploratory operational view of a small convenience sample.
-It is not a system for assessing contractual performance or publishing official
-punctuality statistics.
+- How do expected delays differ across transport modes and monitored stops?
+
+- At what times of day are expected delays highest?
+
+- Which lines have the highest share of departures estimated to be more than three minutes late?
+
+- How much data supports each comparison?
+
+The dashboard provides an exploratory view of a limited sample, rather than a comprehensive assessment of Oslo's public transport network.
 
 ## Key findings
 
